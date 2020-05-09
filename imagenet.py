@@ -47,7 +47,6 @@ class imagenet_train():
         self.img_size = img_size
         self.batch_size = batch_size
         self.index_to_net_label = imagenet_info.index_to_net_label
-        #self.AUTOTUNE = tf.data.experimental.AUTOTUNE
         self.Dataset = self._generator()
     
     def train_preprocessing_image(self, img_path):
@@ -82,7 +81,7 @@ class imagenet_train():
         label_ds = tf.data.Dataset.from_tensor_slices(all_label)
         
         image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
-        image_label_ds = image_label_ds.shuffle(buffer_size=int(len(all_image_path)/3)).repeat().\
+        image_label_ds = image_label_ds.shuffle(buffer_size=24000, reshuffle_each_iteration=True).repeat().\
         batch(self.batch_size).prefetch(buffer_size=AUTOTUNE)
         self.data_length = len(all_image_path)
         return image_label_ds
@@ -98,7 +97,6 @@ class imagenet_valid():
         self.batch_size = batch_size
         self.index_to_net_label = imagenet_info.index_to_net_label
         self.imgnet_info = imagenet_info
-        self.AUTOTUNE = tf.data.experimental.AUTOTUNE
         self.Dataset = self._generator()
     
     def valid_preprocessing_image(self, img_path):
@@ -109,16 +107,17 @@ class imagenet_valid():
         return img 
     
     def _generator(self):
+        AUTOTUNE = tf.data.experimental.AUTOTUNE
         all_images = os.listdir(self.img_folder)
         all_images.sort()
         all_image_path = [os.path.join(self.img_folder, file) for file in all_images]
         all_label = self.imgnet_info.val_label["net_label"]
         path_ds = tf.data.Dataset.from_tensor_slices(all_image_path)
-        image_ds = path_ds.map(self.valid_preprocessing_image, num_parallel_calls=self.AUTOTUNE)
+        image_ds = path_ds.map(self.valid_preprocessing_image, num_parallel_calls=AUTOTUNE)
         label_ds = tf.data.Dataset.from_tensor_slices(all_label)
         image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
         image_label_ds = image_label_ds.repeat().\
-        batch(self.batch_size).prefetch(buffer_size=self.AUTOTUNE)
+        batch(self.batch_size).prefetch(buffer_size=AUTOTUNE)
         self.data_length = len(all_image_path)
         return image_label_ds
     
