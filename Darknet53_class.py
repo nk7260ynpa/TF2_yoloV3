@@ -97,8 +97,7 @@ class Darknet53(tf.keras.Model):
         
         self.dense = Dense(1000, activation=None, use_bias=True, name="dense")
         
-        self.build(input_shape=(None, 256, 256, 3))
-        
+           
     def call(self, input_tensor, training=False):
         x = self.l0a(input_tensor, training)
         x = self.l0_pool(x, training)
