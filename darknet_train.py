@@ -10,7 +10,7 @@ from imagenet import imagenet_info, imagenet_train, imagenet_valid
 from Darknet53_model import Darknet53
 import datetime
 
-os.environ["CUDA_VISIBLE_DIVICES"] = "14"
+os.environ["CUDA_VISIBLE_DEVICES"] = "8"
 gpus = tf.config.experimental.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(gpus[0], True)
 
@@ -103,4 +103,13 @@ for epoch in range(EPOCHS):
     
 print("Training End!")
 log.write("Training End!\n")
+
+yolo_model = tf.keras.Model([model.get_layer("Input_stage").input], 
+                            [model.get_layer("tf_op_layer_add_10").output,
+                             model.get_layer("tf_op_layer_add_18").output,
+                             model.get_layer("tf_op_layer_add_22").output])
+
+yolo_model.save_weights("weights/yolo_darknet_weights.h5")
+
+log.write("Transfer darknet weights success!\n")
 log.close()

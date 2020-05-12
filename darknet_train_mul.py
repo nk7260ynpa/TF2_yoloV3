@@ -10,11 +10,12 @@ from imagenet import imagenet_info, imagenet_train, imagenet_valid
 from Darknet53_model import Darknet53
 import datetime
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "12,13"
+os.environ["CUDA_VISIBLE_DEVICES"] = "12,13,14,15"
 gpus = tf.config.experimental.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(gpus[0], True)
 tf.config.experimental.set_memory_growth(gpus[1], True)
-
+tf.config.experimental.set_memory_growth(gpus[2], True)
+tf.config.experimental.set_memory_growth(gpus[3], True)
 
 strategy = tf.distribute.MirroredStrategy()
 
@@ -25,22 +26,23 @@ imgnet_train_dist_dataset = strategy.experimental_distribute_dataset(imgnet_trai
 imgnet_valid_dist_dataset = strategy.experimental_distribute_dataset(imgnet_valid.Dataset)
 
 with strategy.scope():
+    #build model
     model = Darknet53()
     
-with strategy.scope():
+    #build loss
     loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False, reduction=tf.keras.losses.Reduction.NONE)
     def compute_loss(labels, predictions):
         per_example_loss = loss_object(labels, predictions)
         return tf.nn.compute_average_loss(per_example_loss, global_batch_size=256)
     optimizer = tf.keras.optimizers.Adam(0.0001)
     
-with strategy.scope():
+    #build metrics
     train_loss = tf.keras.metrics.Mean(name="train_loss")
     train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name="train_accuracy")
     valid_loss = tf.keras.metrics.Mean(name="valid_loss")
     valid_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name="valid_accuracy")
     
-#@tf.function
+
 def train_step(images, labels):
     with tf.GradientTape() as tape:
         predictions = model(images, training=True)
@@ -51,7 +53,7 @@ def train_step(images, labels):
     train_loss.update_state(loss)
     train_accuracy(labels, predictions)
 
-#@tf.function
+
 def valid_step(images, labels):
     predictions = model(images, training=False)
     loss = loss_object(labels, predictions)
@@ -64,7 +66,7 @@ def distributed_train_step(images, labels):
 
     
 @tf.function
-def distributed_valid_step(dataset_inputs):
+def distributed_valid_step(images, labels):
     strategy.experimental_run_v2(valid_step, (images, labels))
 
 time = datetime.datetime.now()
@@ -121,5 +123,14 @@ for epoch in range(EPOCHS):
     
 print("Training End!")
 log.write("Training End!\n")
+
+yolo_model = tf.keras.Model([model.get_layer("Input_stage").input], 
+                            [model.get_layer("tf_op_layer_add_10").output,
+                             model.get_layer("tf_op_layer_add_18").output,
+                             model.get_layer("tf_op_layer_add_22").output])
+
+yolo_model.save_weights("weights/yolo_darknet_mul_weights.h5")
+
+log.write("Transfer darknet weights success!\n")
 log.close()
     
