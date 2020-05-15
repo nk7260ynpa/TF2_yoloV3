@@ -5,21 +5,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from imagenet_info import imagenet_info
 from imagenet import imagenet_info, imagenet_train, imagenet_valid
-from Darknet53_model import Darknet53
+from model.Darknet53_model import Darknet53
 import datetime
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "12,13,14,15"
+os.environ["CUDA_VISIBLE_DEVICES"] = "12,13"
 gpus = tf.config.experimental.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(gpus[0], True)
 tf.config.experimental.set_memory_growth(gpus[1], True)
-tf.config.experimental.set_memory_growth(gpus[2], True)
-tf.config.experimental.set_memory_growth(gpus[3], True)
+#tf.config.experimental.set_memory_growth(gpus[2], True)
+#tf.config.experimental.set_memory_growth(gpus[3], True)
 
 strategy = tf.distribute.MirroredStrategy()
 
-imgnet_info  = imagenet_info("map_clsloc.txt", "ILSVRC2012_validation_ground_truth.txt")
+imgnet_info  = imagenet_info("data/map_clsloc.txt", "data/ILSVRC2012_validation_ground_truth.txt")
 imgnet_train = imagenet_train("/raid/peterchen/datasets/imagenet/2012/train/", 256, imgnet_info, batch_size=256)
 imgnet_valid = imagenet_valid("/raid/peterchen/datasets/imagenet/2012/valid/", 256, imgnet_info, batch_size=256)
 imgnet_train_dist_dataset = strategy.experimental_distribute_dataset(imgnet_train.Dataset)
@@ -71,7 +70,7 @@ def distributed_valid_step(images, labels):
 
 time = datetime.datetime.now()
 #weight_name = "weights"+'_'+str(time.month)+'-'+str(time.day)+'/'
-weight_name = "mul_weights.h5"
+weight_name = "weights.h5"
 weights_path = os.path.join("weights", weight_name)
 #if not os.path.exists(weights_path):
 #    os.mkdir(weights_path)
@@ -79,7 +78,7 @@ weights_path = os.path.join("weights", weight_name)
 EPOCHS = 50
 img_num = 0
 best_loss = np.inf
-log = open(f'./train_mul_record.txt', 'a')
+log = open(f'./log/train_record.txt', 'a')
 print("Training Start!")
 log.write("Training Start!\n")
 for epoch in range(EPOCHS):
@@ -124,13 +123,13 @@ for epoch in range(EPOCHS):
 print("Training End!")
 log.write("Training End!\n")
 
-yolo_model = tf.keras.Model([model.get_layer("Input_stage").input], 
-                            [model.get_layer("tf_op_layer_add_10").output,
-                             model.get_layer("tf_op_layer_add_18").output,
-                             model.get_layer("tf_op_layer_add_22").output])
+# yolo_model = tf.keras.Model([model.get_layer("Input_stage").input], 
+#                             [model.get_layer("tf_op_layer_add_10").output,
+#                              model.get_layer("tf_op_layer_add_18").output,
+#                              model.get_layer("tf_op_layer_add_22").output])
 
-yolo_model.save_weights("weights/yolo_darknet_mul_weights.h5")
+# yolo_model.save_weights("weights/yolo_darknet_mul_weights.h5")
 
-log.write("Transfer darknet weights success!\n")
+# log.write("Transfer darknet weights success!\n")
 log.close()
     

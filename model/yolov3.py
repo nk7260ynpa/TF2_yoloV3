@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, BatchNormalization, LeakyReLU
-from Darknet53_model import  DarkConv, DarkPool, ResidualBlock
+from .Darknet53_model import  DarkConv, DarkPool, ResidualBlock
 import numpy as np
 
 def Darknet53_yolo():
