@@ -59,7 +59,7 @@ def yolo_block(inputs, filters, name):
     return route, inputs 
 
 def upsample(inputs, output_shape):
-    inputs = tf.image.resize(inputs, output_shape)
+    inputs = tf.image.resize(inputs, output_shape, method="nearest")
     inputs = tf.identity(inputs, "upsampled")
     return inputs
 
