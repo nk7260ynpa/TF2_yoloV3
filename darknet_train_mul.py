@@ -9,7 +9,7 @@ from imagenet import imagenet_info, imagenet_train, imagenet_valid
 from model.Darknet53_model import Darknet53
 import datetime
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "12,13"
+os.environ["CUDA_VISIBLE_DEVICES"] = "13,14"
 gpus = tf.config.experimental.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(gpus[0], True)
 tf.config.experimental.set_memory_growth(gpus[1], True)

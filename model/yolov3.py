@@ -102,6 +102,42 @@ def model():
     yolo_model = tf.keras.Model(start_model, [detect_1, detect_2, detect_3])
     return yolo_model
 
+def detection_layer(model_output, img_size, anchors, num_classes):
+    num_anchors = len(anchors)
+    shape = model_output.shape.as_list()
+    grid_size = shape[1:3]
+    dim = grid_size[0] * grid_size[1]
+    bbox_attrs = 5 + num_classes
+    predictions = tf.reshape(model_output, [-1, num_anchors * dim, bbox_attrs])
+    stride = (img_size[0] // grid_size[0], img_size[1] // grid_size[1])
+    anchors = [(a[0] / stride[0], a[1] / stride[1]) for a in anchors]
+    
+    box_centers, box_sizes, confidence, classes = tf.split(predictions, [2, 2, 1, num_classes], axis=-1)
+    
+    box_centers = tf.nn.sigmoid(box_centers)
+    grid_x = tf.range(grid_size[0], dtype=tf.float32)
+    grid_y = tf.range(grid_size[1], dtype=tf.float32)
+    a, b = tf.meshgrid(grid_x, grid_y)
+    x_offset = tf.reshape(a, (-1, 1))
+    y_offset = tf.reshape(b, (-1, 1))
+    x_y_offset = tf.concat([x_offset, y_offset], axis=-1)
+    x_y_offset = tf.reshape(tf.tile(x_y_offset, [1, num_anchors]), [1, -1, 2])
+    box_centers = box_centers + x_y_offset
+    box_centers = box_centers * stride
+    
+    anchors = tf.tile(anchors, [dim, 1])
+    box_sizes = tf.exp(box_sizes) * anchors
+    box_sizes = box_sizes * stride
+    
+    confidence = tf.nn.sigmoid(confidence)
+    
+    detections = tf.concat([box_centers, box_sizes, confidence], axis=-1)
+    
+    classes = tf.nn.sigmoid(classes)
+    
+    predictions = tf.concat([detections, classes], axis=-1)
+    return predictions
+
 def coco_pretrained_weights(weights_file, model):
     global ptr
     

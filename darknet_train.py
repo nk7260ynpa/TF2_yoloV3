@@ -5,16 +5,16 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from imagenet_info import imagenet_info
+#from imagenet_info import imagenet_info
 from imagenet import imagenet_info, imagenet_train, imagenet_valid
-from Darknet53_model import Darknet53
+from model.Darknet53_model import Darknet53
 import datetime
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "8"
+os.environ["CUDA_VISIBLE_DEVICES"] = "13"
 gpus = tf.config.experimental.list_physical_devices("GPU")
 tf.config.experimental.set_memory_growth(gpus[0], True)
 
-imgnet_info  = imagenet_info("map_clsloc.txt", "ILSVRC2012_validation_ground_truth.txt")
+imgnet_info  = imagenet_info("data/imagenet/map_clsloc.txt", "data/imagenet/ILSVRC2012_validation_ground_truth.txt")
 imgnet_train = imagenet_train("/raid/peterchen/datasets/imagenet/2012/train/", 256, imgnet_info, batch_size=128)
 imgnet_valid = imagenet_valid("/raid/peterchen/datasets/imagenet/2012/valid/", 256, imgnet_info, batch_size=128)
 
