@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 import tensorflow as tf
 from model import yolov3
-from utils import center_to_minmax, iou_calculate, non_max_suppression
+from utils import detections_center_to_minmax, non_max_suppression
 from utils import convert_to_original_size, load_coco_names, draw_boxes
 from PIL import ImageDraw, Image
 
@@ -42,7 +42,7 @@ predictions_3 = yolov3.detection_layer(model_output_3, (416, 416), ANCHORS[0:3],
 
 detections = tf.concat([predictions_1, predictions_2, predictions_3], axis=1)
 
-boxes = center_to_minmax(detections)
+boxes = detections_center_to_minmax(detections)
 
 conf_threshold = 0.5
 iou_threshold = 0.4

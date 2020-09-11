@@ -1,5 +1,4 @@
 weights/*
 .ipynb_checkpoints/
 *__pycache__/
-data/SVHN/
-small_data/
+data/*

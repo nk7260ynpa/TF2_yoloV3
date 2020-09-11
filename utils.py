@@ -5,18 +5,48 @@ import tensorflow as tf
 
 
 #後處理座標轉換成min max
-def center_to_minmax(detections):
-    center_x, center_y, width, height, attrs = tf.split(detections, [1, 1, 1, 1, -1], axis=-1)
-    w2 = width / 2
-    h2 = height / 2
-    x0 = center_x - w2
-    y0 = center_y - h2
-    x1 = center_x + w2
-    y1 = center_y + h2
-    
-    boxes = tf.concat([x0, y0, x1, y1], axis=-1)
-    detections = tf.concat([boxes, attrs], axis=-1)
-    return detections
+def to_minmax(box):
+    box = np.reshape(box, (-1, 4))
+    elem_num = box.shape[0]
+    x1 = box[:, 0] - box[:, 2] / 2
+    x2 = box[:, 0] + box[:, 2] / 2
+    y1 = box[:, 1] - box[:, 3] / 2
+    y2 = box[:, 1] + box[:, 3] / 2
+    if elem_num == 1:
+        return np.concatenate((x1, y1, x2, y2))
+    return np.reshape(np.concatenate((x1, y1, x2, y2)), (-1, elem_num)).T
+
+def to_center(box):
+    box = np.reshape(box, (-1, 4))
+    elem_num = box.shape[0]
+    x = (box[:, 0] + box[:, 2]) / 2
+    y = (box[:, 1] + box[:, 3]) / 2
+    w = box[:, 3] - box[:, 1] 
+    h = box[:, 3] + box[:, 1]
+    if elem_num==1:
+        return np.concatenate((x, y, w, h))
+    return np.reshape(np.concatenate((x, y, w, h)), (-1, elem_num)).T
+
+def find_match_anchor(box, anchors):
+    box = np.array([0, 0, x2-x1, y2-y1])
+    box = to_minmax(box)
+    max_index = -1
+    max_iou = -1
+    for i, anchor in enumerate(anchors):
+        anchor = to_minmax(anchor)
+        iou = iou_calculate(box, anchor)
+        if iou > max_iou:
+            max_index = i
+            max_iou = iou
+    return max_index
+
+
+
+def anchor_to_center(anchors):
+    anchor_array = np.array(anchors).reshape((-1, 2))
+    center = np.zeros([anchor_array.shape[0], 2])
+    return np.concatenate((center, anchor_array), axis=1)
+
 
 def iou_calculate(box1, box2):
     b1_x0, b1_y0, b1_x1, b1_y1 = box1
@@ -39,6 +69,21 @@ def iou_calculate(box1, box2):
     return iou
     
 
+#後處理座標轉換成min max        
+def detections_center_to_minmax(detections):
+    center_x, center_y, width, height, attrs = tf.split(detections, [1, 1, 1, 1, -1], axis=-1)
+    w2 = width / 2
+    h2 = height / 2
+    x0 = center_x - w2
+    y0 = center_y - h2
+    x1 = center_x + w2
+    y1 = center_y + h2
+    
+    boxes = tf.concat([x0, y0, x1, y1], axis=-1)
+    detections = tf.concat([boxes, attrs], axis=-1)
+    return detections
+    
+    
     
 def non_max_suppression(predictions_with_boxes, confidence_threshold, iou_threshold=0.4):
     # 去除confidence過低的參數

@@ -1,9 +1,9 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, BatchNormalization, LeakyReLU
-from .Darknet53_model import  DarkConv, DarkPool, ResidualBlock
+from .Darknet53 import  DarkConv, DarkPool, ResidualBlock
 import numpy as np
 
-def Darknet53_yolo():
+def Darknet53_yolo_base():
     inputs = tf.keras.Input(shape=(416, 416, 3,), name="Input_stage_yolo")
 
     x = DarkConv(inputs, 32, (3, 3), 1, "stage0")
@@ -47,6 +47,16 @@ def Darknet53_yolo():
     model = tf.keras.Model(inputs, [output_1, output_2, output_3], name="Darknet_yolo")
     return model
 
+def Efficient_yolo_base():
+    base_model = tf.keras.applications.EfficientNetB0(input_shape=(416, 416, 3), include_top=False, weights="imagenet")
+    inputs = base_model.input
+    outputs = [base_model.get_layer("block4a_expand_activation").output,
+               base_model.get_layer("block6a_expand_activation").output,
+               base_model.get_layer("top_activation").output]
+    model = tf.keras.Model(inputs, outputs)
+    return model
+
+
 def yolo_block(inputs, filters, name):
     layer_idx = iter(range(1, 7))
     inputs = DarkConv(inputs, filters, kernel_size=1, layer_idx=next(layer_idx), name=name)
@@ -63,15 +73,15 @@ def upsample(inputs, output_shape):
     inputs = tf.identity(inputs, "upsampled")
     return inputs
 
-def model():
+def Darknet_yolo(num_class=80):
     start_model = tf.keras.layers.Input(shape=(416, 416, 3))
-    Darknet_yolo = Darknet53_yolo()
-    conv_output_1, conv_output_2, conv_output_3 = Darknet_yolo(start_model)
+    conv_yolo = Darknet53_yolo_base()
+    conv_output_1, conv_output_2, conv_output_3 = conv_yolo(start_model)
     
     #route1
     start = tf.keras.layers.Input(shape=(13, 13, 1024), name="yolo_block1_Input")
     route, inputs = yolo_block(start, 512, name="yolo_block_1")
-    detect = Conv2D(filters=3 * (5+80), kernel_size=1, strides=1, name="yolo_block_1_output_Conv")(inputs)
+    detect = Conv2D(filters=3 * (5+num_class), kernel_size=1, strides=1, name="yolo_block_1_output_Conv")(inputs)
     yolo_block_1_model = tf.keras.Model(inputs=start, outputs=[route, detect], name="yolo_block_1")
     
     #route2
@@ -81,7 +91,7 @@ def model():
     start2 = tf.keras.layers.Input(shape=(26, 26, 512))
     inputs = tf.concat([route, start2], axis=3)
     route, inputs = yolo_block(inputs, 256, name="yolo_block_2")
-    detect = Conv2D(filters=3 * (5+80), kernel_size=1, strides=1, name="yolo_block_2_output_Conv")(inputs)
+    detect = Conv2D(filters=3 * (5+num_class), kernel_size=1, strides=1, name="yolo_block_2_output_Conv")(inputs)
     yolo_block_2_model = tf.keras.Model(inputs=[start1, start2], outputs=[route, detect], name="yolo_block_2")
     
     #route3
@@ -91,7 +101,7 @@ def model():
     start2 = tf.keras.layers.Input(shape=(52, 52, 256))
     inputs = tf.concat([route, start2], axis=3)
     route, inputs = yolo_block(inputs, 128, name="yolo_block_3")
-    detect = Conv2D(filters=3 * (5+80), kernel_size=1, strides=1, name="yolo_block_3_output_Conv")(inputs)
+    detect = Conv2D(filters=3 * (5+num_class), kernel_size=1, strides=1, name="yolo_block_3_output_Conv")(inputs)
     yolo_block_3_model = tf.keras.Model(inputs=[start1, start2], outputs=[detect], name="yolo_block_3")
     
     #output
@@ -102,6 +112,50 @@ def model():
     yolo_model = tf.keras.Model(start_model, [detect_1, detect_2, detect_3])
     return yolo_model
 
+## ====================####
+
+def Efficient_yolo(num_class=80):
+    start_model = tf.keras.layers.Input(shape=(416, 416, 3))
+    conv_yolo = Efficient_yolo_base()
+    conv_output_1, conv_output_2, conv_output_3 = conv_yolo(start_model)
+    
+    #route1
+    start = tf.keras.layers.Input(shape=(13, 13, 1280), name="yolo_block1_Input")
+    route, inputs = yolo_block(start, 640, name="yolo_block_1")
+    detect = Conv2D(filters=3 * (5+num_class), kernel_size=1, strides=1, name="yolo_block_1_output_Conv")(inputs)
+    yolo_block_1_model = tf.keras.Model(inputs=start, outputs=[route, detect], name="yolo_block_1")
+    
+    #route2
+    start1 = tf.keras.layers.Input(shape=(13, 13, 640), name="yolo_block2_Input")
+    route = DarkConv(start1, filters=320, kernel_size=1, strides=(1, 1), padding="SAME", layer_idx=0, name="yolo_block_2")
+    route = upsample(route, (26, 26))
+    start2 = tf.keras.layers.Input(shape=(26, 26, 672))
+    inputs = tf.concat([route, start2], axis=3)
+    route, inputs = yolo_block(inputs, 320, name="yolo_block_2")
+    detect = Conv2D(filters=3 * (5+num_class), kernel_size=1, strides=1, name="yolo_block_2_output_Conv")(inputs)
+    yolo_block_2_model = tf.keras.Model(inputs=[start1, start2], outputs=[route, detect], name="yolo_block_2")
+    
+    #route3
+    start1 = tf.keras.layers.Input(shape=(26, 26, 320), name="yolo_block_3_Input")
+    route = DarkConv(start1, filters=160, kernel_size=1, strides=(1, 1), padding="SAME", layer_idx=0, name="yolo_block_3")
+    route = upsample(route, (52, 52))
+    start2 = tf.keras.layers.Input(shape=(52, 52, 240))
+    inputs = tf.concat([route, start2], axis=3)
+    route, inputs = yolo_block(inputs, 128, name="yolo_block_3")
+    detect = Conv2D(filters=3 * (5+num_class), kernel_size=1, strides=1, name="yolo_block_3_output_Conv")(inputs)
+    yolo_block_3_model = tf.keras.Model(inputs=[start1, start2], outputs=[detect], name="yolo_block_3")
+    
+    #output
+    route, detect_1 = yolo_block_1_model(conv_output_3)
+    route, detect_2 = yolo_block_2_model([route, conv_output_2])
+    detect_3 = yolo_block_3_model([route, conv_output_1])
+    
+    yolo_model = tf.keras.Model(start_model, [detect_1, detect_2, detect_3])
+    return yolo_model
+
+
+
+
 def detection_layer(model_output, img_size, anchors, num_classes):
     num_anchors = len(anchors)
     shape = model_output.shape.as_list()
@@ -110,8 +164,9 @@ def detection_layer(model_output, img_size, anchors, num_classes):
     bbox_attrs = 5 + num_classes
     predictions = tf.reshape(model_output, [-1, num_anchors * dim, bbox_attrs])
     stride = (img_size[0] // grid_size[0], img_size[1] // grid_size[1])
-    anchors = [(a[0] / stride[0], a[1] / stride[1]) for a in anchors]
-    
+    #anchors = [(a[0] / stride[0], a[1] / stride[1]) for a in anchors]
+    anchors = [(float(a[0]), float(a[1])) for a in anchors]
+    #print(anchors)
     box_centers, box_sizes, confidence, classes = tf.split(predictions, [2, 2, 1, num_classes], axis=-1)
     
     box_centers = tf.nn.sigmoid(box_centers)
@@ -127,7 +182,7 @@ def detection_layer(model_output, img_size, anchors, num_classes):
     
     anchors = tf.tile(anchors, [dim, 1])
     box_sizes = tf.exp(box_sizes) * anchors
-    box_sizes = box_sizes * stride
+    #box_sizes = box_sizes * stride
     
     confidence = tf.nn.sigmoid(confidence)
     
@@ -137,6 +192,10 @@ def detection_layer(model_output, img_size, anchors, num_classes):
     
     predictions = tf.concat([detections, classes], axis=-1)
     return predictions
+
+
+
+
 
 def coco_pretrained_weights(weights_file, model):
     global ptr

@@ -6,9 +6,9 @@ import pathlib
 import random
 
 class imagenet_info():
-    def __init__(self, map_index_path, val_label_path):
-        self.map_index_path = map_index_path
-        self.val_label_path = val_label_path
+    def __init__(self):
+        self.map_index_path = "data/imagenet/map_clsloc.txt"
+        self.val_label_path = "data/imagenet/ILSVRC2012_validation_ground_truth.txt"
         self.df = self._df_generator()
         self.val_label = self._valid_label_generator()
         self.index_to_net_label = dict(zip(self.df["index"], self.df["net_label"]))
@@ -42,22 +42,21 @@ class imagenet_info():
       
 class imagenet_train():
     #super(train_image_dataset, self).__init__()
-    def __init__(self, img_folder, img_size, imagenet_info, batch_size=32):
+    def __init__(self, img_folder, img_size, preprocess, batch_size=32, buffer_size=12000):
         self.img_folder = img_folder
         self.img_size = img_size
         self.batch_size = batch_size
-        self.index_to_net_label = imagenet_info.index_to_net_label
+        self.buffer_size = buffer_size
+        self.imgnet_info = imagenet_info()
+        self.classes = 1000
+        self.preprocess = preprocess
+        self.index_to_net_label = self.imgnet_info.index_to_net_label
         self.Dataset = self._generator()
     
     def train_preprocessing_image(self, img_path):
         img = tf.io.read_file(img_path)
         img = tf.image.decode_jpeg(img, channels=3)
-
-        img = tf.image.resize(img, (self.img_size+32, self.img_size+32))
-        crop_size = tf.random.uniform([1], minval=self.img_size-32, maxval=self.img_size+32, dtype=tf.int32)
-        img = tf.image.random_crop(img , [crop_size[0], crop_size[0], 3])
-        img = tf.image.resize(img, (self.img_size, self.img_size))
-        img /= 255.
+        img = self.preprocess(img)
         return img
     
     def _generator(self):
@@ -65,11 +64,8 @@ class imagenet_train():
         data_root = pathlib.Path(self.img_folder)
         all_image_path = []
         all_label = []
-#         for path in data_root.glob("./*/*"):
-#             all_image_path.append(str(path))
-#             all_label.append(self.index_to_net_label[path.parent.name])
-            
-        all_image_libpath = [path for path in data_root.glob("./*/*")]
+
+        all_image_libpath = [path for path in data_root.glob("./*/*.JPEG")]
         random.shuffle(all_image_libpath)
         for path in all_image_libpath:
             all_image_path.append(str(path))
@@ -81,7 +77,7 @@ class imagenet_train():
         label_ds = tf.data.Dataset.from_tensor_slices(all_label)
         
         image_label_ds = tf.data.Dataset.zip((image_ds, label_ds))
-        image_label_ds = image_label_ds.shuffle(buffer_size=24000, reshuffle_each_iteration=True).repeat().\
+        image_label_ds = image_label_ds.shuffle(buffer_size=self.buffer_size, reshuffle_each_iteration=True).repeat().\
         batch(self.batch_size).prefetch(buffer_size=AUTOTUNE)
         self.data_length = len(all_image_path)
         return image_label_ds
@@ -91,20 +87,20 @@ class imagenet_train():
     
 
 class imagenet_valid():
-    def __init__(self, img_folder, img_size, imagenet_info, batch_size=32):
+    def __init__(self, img_folder, img_size, preprocess, batch_size=32):
         self.img_folder = img_folder
         self.img_size = img_size
         self.batch_size = batch_size
-        self.index_to_net_label = imagenet_info.index_to_net_label
-        self.imgnet_info = imagenet_info
+        self.imgnet_info = imagenet_info()
+        self.preprocess = preprocess
+        self.index_to_net_label = self.imgnet_info.index_to_net_label
         self.Dataset = self._generator()
     
     def valid_preprocessing_image(self, img_path):
         img = tf.io.read_file(img_path)
         img = tf.image.decode_jpeg(img, channels=3)
-        img = tf.image.resize(img, (self.img_size, self.img_size))
-        img /= 255.
-        return img 
+        img = self.preprocess(img)
+        return img
     
     def _generator(self):
         AUTOTUNE = tf.data.experimental.AUTOTUNE
