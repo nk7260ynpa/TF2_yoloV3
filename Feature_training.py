@@ -12,7 +12,7 @@ import string
 import argparse
 from data_loader.imagenet import imagenet_train, imagenet_valid
 from models.Darknet53 import Darknet53
-from process import Scale_to_one, Standardize, Random_drop, Square_drop, Resize, Resize_drop
+from image_process import Scale_to_one, Standardize, Random_drop, Square_drop, Resize, Resize_drop
 
 
 def train_process(img, img_size=224,drop_rate=0.0, Square_rate=0.0):

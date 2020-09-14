@@ -194,9 +194,6 @@ def detection_layer(model_output, img_size, anchors, num_classes):
     return predictions
 
 
-
-
-
 def coco_pretrained_weights(weights_file, model):
     global ptr
     

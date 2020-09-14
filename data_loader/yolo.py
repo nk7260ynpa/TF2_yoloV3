@@ -24,8 +24,8 @@ def x_y_preprocess(data_path, label_l, label_m, label_s):
     tensor_s = path_to_tensor(label_s)
     return img, tensor_l, tensor_m, tensor_s
 
-def VOC_dataset(DATASET_PATH, LABEL_PATH):
-	data_root = pathlib.Path(os.path.join(DATASET_PATH, "JPEGImages"))
+def YOLO_dataset(IMAGE_PATH, LABEL_PATH):
+	data_root = pathlib.Path("JPEGImages")
 	data_path_list = [str(path) for path in data_root.glob("./*.jpg")]
 	label_l_list = [os.path.join(LABEL_PATH, str(path.name)[:-4]+"_l.ts") for path in data_root.glob("./*.jpg")]
 	label_m_list = [os.path.join(LABEL_PATH, str(path.name)[:-4]+"_m.ts") for path in data_root.glob("./*.jpg")]
